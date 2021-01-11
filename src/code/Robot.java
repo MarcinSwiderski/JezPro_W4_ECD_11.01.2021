@@ -1,16 +1,25 @@
 package code;
 
 public class Robot implements Runnable {
-    private final ConsoleCharger consoleCharger;
-    private static final int BASE_TIME_ON_CHARGE = 300;
-    private final Object Lock = new Object();
+
+    private final Object lock = new Object();
+    private RobotStatus robotStatus;
     private final String robotName;
     private final int robotSize;
-    private RobotStatus status;
+    private final ConsoleCharger consoleCharger;
+    private static final int BASE_WORKING_MULTIPLAYER = 40;
 
-    public Robot(String name, int robotSize, ConsoleCharger consoleCharger) {
+
+    public enum RobotStatus {
+        WORKING,
+        CHARGING,
+        WAITING,
+        WANT_TO_CHARGE
+    }
+
+    public Robot( String name, int size, ConsoleCharger consoleCharger) {
         this.robotName = name;
-        this.robotSize = robotSize;
+        this.robotSize = size;
         this.consoleCharger = consoleCharger;
     }
 
@@ -18,69 +27,62 @@ public class Robot implements Runnable {
         return robotName;
     }
 
-    private enum RobotStatus {
-        WORKING,
-        WAITING,
-        CHARGING,
-        WAITING_FOR_FREE_CHARGER
-
-    }
-
-    public RobotStatus getRobotStatus() {
-        synchronized (Lock) {
-            return status;
-        }
-    }
-
     public int getRobotSize() {
         return robotSize;
     }
 
-    public void setRobotStatus(RobotStatus robotStatus) {
-        synchronized (Lock) {
-            status = robotStatus;
+    private void setRobotStatus(RobotStatus s) {
+        synchronized (lock) {
+            robotStatus = s;
+        }
+        consoleCharger.display();
+    }
+
+    private RobotStatus getRobotStatus() {
+        synchronized (lock) {
+            return robotStatus;
         }
     }
 
-    private int getOnChargeTime() {
-        return robotSize * BASE_TIME_ON_CHARGE;
+    private int getWorkingTime() {
+        return BASE_WORKING_MULTIPLAYER * getRobotSize();
     }
 
-    private int getChargeingTime() {
-        return robotSize * 2 * BASE_TIME_ON_CHARGE;
+    private int getChargingTime() {
+        return BASE_WORKING_MULTIPLAYER * 2 * getRobotSize();
     }
-
     @Override
-    public void run() {
-
+    public synchronized void run() {
         try {
             while(true) {
-                setRobotStatus(RobotStatus.CHARGING.WORKING);
-                Thread.sleep(100 * getOnChargeTime());
+                setRobotStatus(RobotStatus.WORKING);
+                Thread.sleep(100 * getWorkingTime());
 
                 setRobotStatus(RobotStatus.WAITING);
-                while(!consoleCharger.requestCharge(this)) {
-                    setRobotStatus(RobotStatus.WAITING_FOR_FREE_CHARGER);
+                while(!consoleCharger.requestAccessToCharger(this)) {
+                    setRobotStatus(RobotStatus.WANT_TO_CHARGE);
                     wait();
                     setRobotStatus(RobotStatus.WAITING);
                 }
 
                 setRobotStatus(RobotStatus.CHARGING);
-                Thread.sleep(100 * getChargeingTime());
-
-                consoleCharger.disconnect(this);
+                Thread.sleep(100 * getChargingTime());
+                consoleCharger.disconnectRobotFromCharger(this);
             }
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-
     }
 
-    public void isChargerAvailable() {
-        if (getRobotStatus() == RobotStatus.WAITING)
+    public void isChargerFree() {
+        if(getRobotStatus() == RobotStatus.WANT_TO_CHARGE) {
             synchronized (this) {
                 notify();
             }
+        }
     }
-
+    @Override
+    public String toString() {
+        return String.format("%s     %d      %s", robotName, robotSize, getRobotStatus());
+    }
 }

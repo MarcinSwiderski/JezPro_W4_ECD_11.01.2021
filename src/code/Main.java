@@ -6,35 +6,41 @@ import java.util.List;
 import java.util.Scanner;
 
 public class Main {
-    private static int inputNumber(Scanner scanner, String question, int defaultVal) {
-        System.out.printf("%s? [%d] ", question, defaultVal);
-        while(true) {
-            String line = scanner.nextLine();
-            if (line.isEmpty())
-                return defaultVal;
-            try {
-                return Integer.parseInt(line);
-            } catch (NumberFormatException ex) {
-                // loop again
-            }
+    /**
+     * Used as a shortcut for value input
+     * @param scanner
+     * @param question
+     * @param defaultInputValue
+     * @return defaultInputValue or input given by user
+     */
+    private static int universalInputIntValues(Scanner scanner, String question, int defaultInputValue) {
+        System.out.printf(question + "?");
+        String line = scanner.nextLine();
+        if (line.isEmpty())
+            return defaultInputValue;
+        try {
+            return Integer.parseInt(line);
+        } catch (NumberFormatException ex) {
+            System.out.println("Not integer. Initializing default value");
+            return defaultInputValue;
         }
     }
 
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
-        ConsoleCharger chargingStation = new ConsoleCharger(inputNumber(scanner, "Ilość portów w ładowarce", 8));
-
+        ConsoleCharger consoleCharger = new ConsoleCharger(4);
         List<Thread> threads = new ArrayList<>();
+        int robotAmount = universalInputIntValues(scanner, "Ile robotów?", 6);
 
-        int robotAmount = inputNumber(scanner, "Ilość robotów", 6);
         for(int i = 0; i < robotAmount; i++) {
-            String name = Character.toString((int)'A' + (i % 26));
-            int workTime = inputNumber(scanner, "Czas pracy robota " + name, 1 + (int) (Math.random() * 20));
-            int size = inputNumber(scanner, "Rozmiar robota " + name, 1 + (int) (Math.random() * 6));
-            Robot robot = new Robot(name, size, chargingStation);
-            chargingStation.addRobot(robot);
+            String nameOfTheRobot = Character.toString(65 + i);
+            System.out.println("Rozmiar robota?");
+            int size = universalInputIntValues(scanner, "Rozmiar robota " + nameOfTheRobot, 1 + i);
+            Robot robot = new Robot( nameOfTheRobot, size, consoleCharger);
+            consoleCharger.addRobot(robot);
             threads.add(new Thread(robot));
         }
-        threads.forEach(Thread::start);
+//        threads.forEach(Thread::start);
+        threads.forEach(thread -> thread.start());
     }
 }

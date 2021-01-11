@@ -7,18 +7,17 @@ import java.util.OptionalInt;
 
 public class ConsoleCharger {
     private List<Optional<Robot>> chargerPorts = new ArrayList<>();
-    private List<Robot> allRobots;
+    private List<Robot> listOfAllRobots;
     int maxRobotSize;
 
     public ConsoleCharger(int size) {
         for (int i = 0; i < size; i++)
             chargerPorts.add(Optional.empty());
-
-        allRobots = new ArrayList<>();
+        listOfAllRobots = new ArrayList<>();
     }
 
     public synchronized void addRobot(Robot robot) {
-        allRobots.add(robot);
+        listOfAllRobots.add(robot);
         if (robot.getRobotSize() > maxRobotSize)
             maxRobotSize = robot.getRobotSize();
     }
@@ -30,7 +29,6 @@ public class ConsoleCharger {
                 emptyRangeSize = 0;
                 continue;
             }
-
             emptyRangeSize++;
             if (emptyRangeSize >= size)
                 return OptionalInt.of(i - size + 1);
@@ -45,7 +43,7 @@ public class ConsoleCharger {
         return OptionalInt.empty();
     }
 
-    public synchronized boolean requestCharge(Robot robot) {
+    public synchronized boolean requestAccessToCharger(Robot robot) {
         OptionalInt maybeSlot = getEmptySlotForSize(robot.getRobotSize());
         if (maybeSlot.isEmpty())
             return false;
@@ -61,27 +59,37 @@ public class ConsoleCharger {
         return true;
     }
 
-    public synchronized void disconnect(Robot robot) {
+    public synchronized void disconnectRobotFromCharger(Robot robot) {
         for (int i = 0; i < chargerPorts.size(); i++) {
             Optional<Robot> robotOnPort = chargerPorts.get(i);
             if (robotOnPort.isPresent() && robotOnPort.orElseThrow() == robot)
                 chargerPorts.set(i, Optional.empty());
         }
 
-        allRobots.forEach(Robot::isChargerAvailable);
+        listOfAllRobots.forEach(Robot -> {
+        Robot.isChargerFree();
+        });
     }
 
+    /**
+     * Displays all data in the console.
+     */
     public synchronized void display() {
-        System.out.println("\nNazwa  Rozmiar  Status");
-        allRobots.stream().map(Robot::toString).forEach(System.out::println);
+        displaySchema();
+        displayPositions();
+    }
 
-        System.out.println("Stanowiska");
+    /**
+     * displays robots movement
+     */
+    public synchronized void displayPositions(){
+        System.out.println("Factory:");
         for (int i = 0; i < maxRobotSize - 1; i++) {
             if (chargerPorts.get(0).isPresent()
                     && chargerPorts.get(0).orElseThrow().getRobotSize() >= maxRobotSize - i)
-                System.out.printf("_: %s\n", chargerPorts.get(0).orElseThrow().getRobotName());
+                System.out.printf("X: %s\n", chargerPorts.get(0).orElseThrow().getRobotName());
             else
-                System.out.println("_:");
+                System.out.println("X:");
         }
         for (int i = 0; i < chargerPorts.size(); i++) {
             if (chargerPorts.get(i).isPresent())
@@ -92,9 +100,20 @@ public class ConsoleCharger {
         for (int i = 0; i < maxRobotSize - 1; i++) {
             if (chargerPorts.get(chargerPorts.size() - 1).isPresent()
                     && chargerPorts.get(chargerPorts.size() - 1).orElseThrow().getRobotSize() > i + 1)
-                System.out.printf("_: %s\n", chargerPorts.get(chargerPorts.size() - 1).orElseThrow().getRobotName());
+                System.out.printf("X: %s\n", chargerPorts.get(chargerPorts.size() - 1).orElseThrow().getRobotName());
             else
-                System.out.println("_:");
+                System.out.println("X:");
         }
+    }
+
+    /**
+     * displays informations of robots actual state
+     */
+    public synchronized void displaySchema(){
+        System.out.println("\nName___Size____Status");
+        //prints every toString in every Robot instance via lambdas
+        listOfAllRobots.stream().map(Robot::toString).forEach(x -> {
+            System.out.println(x);
+        });
     }
 }
